@@ -1,0 +1,4 @@
+add more options for nanosecond sleep parsing (just make it parse the number...)
+add option to exclude files based on extension
+add option to exclude files based on regex
+switch to use str_unordered_string or similar?

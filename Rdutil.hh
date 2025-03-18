@@ -10,6 +10,9 @@
 #define rdutil_hh
 
 #include <vector>
+#include <unordered_set>
+#include <string>
+#include <regex>
 
 #include "Fileinfo.hh" //file container
 
@@ -48,6 +51,30 @@ public:
    * @return number of elements removed
    */
   std::size_t removeIdenticalInodes();
+
+  /**
+   * Remove files whose extensions are in the given set
+   * @return number of elements removed
+   */
+  std::size_t removeMatchingExtensions(const std::unordered_set<string> &extensions);
+
+  /**
+   * Remove files whose extensions are not in the given set
+   * @return number of elements removed
+   */
+  std::size_t removeNonMatchingExtensions(const std::unordered_set<string> &extensions);
+
+  /**
+   * Remove files whose paths match the given regex
+   * @return number of elements removed
+   */
+  std::size_t removeMatchingRegex(const std::regex &pattern);
+
+  /**
+   * Remove files whose paths do not match the given regex
+   * @return number of elements removed
+   */
+  std::size_t removeNonMatchingRegex(const std::regex &pattern);
 
   /**
    * remove files with unique size from the list.

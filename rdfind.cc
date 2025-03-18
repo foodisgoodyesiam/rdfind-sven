@@ -10,7 +10,9 @@
 #include <algorithm>
 #include <iostream>
 #include <limits>
+#include <regex>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 // project
@@ -79,10 +81,21 @@ usage()
     << "                                  are supported; 0,1-5,10,25,50,100\n"
     << " -dryrun|-n         true |(false) print to stdout instead of "
        "changing anything\n"
+       " -skipextension     extension     Skip files with given extension\n"
+       " TODO implement the above\n"
+       " -includeextension  extension     Only include files with given extension\n"
+       " TODO implement the above\n"
+       " -skipregex         regex         Skip files whose path "
+       "matches grep-style regex\n"
+       " TODO implement the above\n"
+       " -includeregex      regex         Only include files whose path "
+       "matches grep-style regex\n"
+       " TODO implement the above\n"
     << " -h|-help|--help                  show this help and exit\n"
     << " -v|--version                     display version number and exit\n"
     << '\n'
     << "If properly installed, a man page should be available as man rdfind.\n"
+       "TODO Steven: add info for my own changes to the man pages\n"
     << '\n'
     << "rdfind is written by Paul Dreik 2006 onwards. License: GPL v2 or "
        "later (at your option).\n"
@@ -110,6 +123,13 @@ struct Options
   bool deterministic = true; // be independent of filesystem order
   long nsecsleep = 0; // number of nanoseconds to sleep between each file read.
   std::string resultsfile = "results.txt"; // results file name.
+  TODO is regular set faster for small stuff?
+  std::unordered_set<string> extensions;
+  bool skip_extensions = false;
+  bool include_extensions = false;
+  std::regex regex_pattern;
+  bool skip_regex = false;
+  bool include_regex = false;
 };
 
 Options
@@ -138,6 +158,28 @@ parseOptions(Parser& parser)
       o.makeresultsfile = parser.get_parsed_bool();
     } else if (parser.try_parse_string("-outputname")) {
       o.resultsfile = parser.get_parsed_string();
+    } else if (parser.try_parse_string("-skipextension")) {
+      // TODO implement
+      o.skip_extensions = true;
+      o.extensions.insert(parser.get_parsed_string());
+    } else if (parser.try_parse_string("-includeextension")) {
+      // TODO implement
+      o.include_extensions = true;
+      o.extensions.insert(parser.get_parsed_string());
+    } else if (parser.try_parse_string("-skipregex")) {
+      // TODO implement
+      if (o.skip_regex || o.include_regex) {
+        throw std::runtime_error("can only give one regex");
+      }
+      o.regex_pattern =
+        regex{ parser.get_parsed_string(), regex::optimize | regex::grep };
+    } else if (parser.try_parse_string("-includeregex")) {
+      // TODO implement
+      if (o.skip_regex || o.include_regex) {
+        throw std::runtime_error("can only give one regex");
+      }
+      o.regex_pattern =
+        regex{ parser.get_parsed_string(), regex::optimize | regex::grep };
     } else if (parser.try_parse_bool("-ignoreempty")) {
       if (parser.get_parsed_bool()) {
         o.minimumfilesize = 1;
@@ -234,6 +276,14 @@ parseOptions(Parser& parser)
     std::cerr << "maximum filesize " << o.maximumfilesize
               << " must be larger than minimum filesize " << o.minimumfilesize
               << "\n";
+    std::exit(EXIT_FAILURE);
+  }
+  if (o.skip_extensions && o.include_extensions) {
+    std::cerr << "cannot use both -skipextension and -includeextension\n";
+    std::exit(EXIT_FAILURE);
+  }
+  if (o.skip_regex && o.include_regex) {
+    std::cerr << "cannot use both -skipregex and -includeregex\n";
     std::exit(EXIT_FAILURE);
   }
 
@@ -342,6 +392,26 @@ main(int narg, const char* argv[])
     // remove files with identical devices and inodes from the list
     std::cout << dryruntext << "Removed " << gswd.removeIdenticalInodes()
               << " files due to nonunique device and inode." << std::endl;
+  }
+
+  if (o.skip_extensions) {
+    std::cout << dryruntext << "Removed " gswd.removeMatchingExtensions(o.extensions) << " files due to blacklisted extensions. "
+              << filelist.size() << " files left." << std::endl;
+  }
+
+  if (o.include_extensions) {
+    std::cout << dryruntext << "Removed " gswd.removeNonMatchingExtensions(o.extensions) << " files due to whitelisted extensions. "
+              << filelist.size() << " files left." << std::endl;
+  }
+
+  if (o.skip_regex) {
+    std::cout << dryruntext << "Removed " gswd.removeMatchingRegex(o.regex_pattern) << " files due to matching regex. "
+              << filelist.size() << " files left." << std::endl;
+  }
+
+  if (o.include_regex) {
+    std::cout << dryruntext << "Removed " gswd.removeNonMatchingRegex(o.regex_pattern) << " files due to not matching regex. "
+              << filelist.size() << " files left." << std::endl;
   }
 
   std::cout << dryruntext << "Total size is " << gswd.totalsizeinbytes()
