@@ -83,16 +83,12 @@ usage()
     << " -dryrun|-n         true |(false) print to stdout instead of "
        "changing anything\n"
        " -skipextension     extension     Skip files with given extension\n"
-       " TODO implement the above\n"
        " -includeextension  extension     Only include files with given "
        "extension\n"
-       " TODO implement the above\n"
        " -skipregex         regex         Skip files whose path "
        "matches grep-style regex\n"
-       " TODO implement the above\n"
        " -includeregex      regex         Only include files whose path "
        "matches grep-style regex\n"
-       " TODO implement the above\n"
        // TODO add options to benchmark the steps
        " -regextype         ECMAScript | basic | extended | awk |(grep)| "
        "egrep\n"
@@ -177,11 +173,9 @@ parseOptions(Parser& parser)
     } else if (parser.try_parse_string("-outputname")) {
       o.resultsfile = parser.get_parsed_string();
     } else if (parser.try_parse_string("-skipextension")) {
-      // TODO implement
       o.skip_extensions = true;
       o.extensions.insert(parser.get_parsed_string());
     } else if (parser.try_parse_string("-includeextension")) {
-      // TODO implement
       o.include_extensions = true;
       o.extensions.insert(parser.get_parsed_string());
     } else if (parser.try_parse_string("-skipregex")) {
@@ -274,7 +268,7 @@ parseOptions(Parser& parser)
     } else if (parser.current_arg_is("-version") ||
                parser.current_arg_is("--version") ||
                parser.current_arg_is("-v")) {
-      std::cout << "This is rdfind version " << VERSION << '\n';
+      std::cout << "This is rdfind version " VERSION << '\n';
       std::exit(EXIT_SUCCESS);
     } else {
       std::cerr << "did not understand option " << parser.get_current_index()
