@@ -321,6 +321,58 @@ Rdutil::removeIdenticalInodes()
 }
 
 std::size_t
+Rdutil::removeMatchingExtensions(
+  const std::unordered_set<std::string>& extensions)
+{
+  // TODO test
+  using Iterator = decltype(m_list.begin());
+  // I'm trying to somewhat match the original style but apply_on_range is just
+  // too icky
+  for (Iterator it = m_list.begin(); it != m_list.end(); it++) {
+    // TODO minor: benchmark this vs only calling the function if true, it
+    // probably makes no difference due to compiler optimization
+    it->setdeleteflag(extensions.find(it->getExtension()) != extensions.cend());
+  }
+  return cleanup();
+}
+
+std::size_t
+Rdutil::removeNonMatchingExtensions(
+  const std::unordered_set<std::string>& extensions)
+{
+  // TODO test
+  using Iterator = decltype(m_list.begin());
+  for (Iterator it = m_list.begin(); it != m_list.end(); it++) {
+    // TODO minor: benchmark this vs only calling the function if true, it
+    // probably makes no difference due to compiler optimization
+    it->setdeleteflag(extensions.find(it->getExtension()) == extensions.cend());
+  }
+  return cleanup();
+}
+
+std::size_t
+Rdutil::removeMatchingRegex(const std::regex& pattern)
+{
+  // TODO test
+  using Iterator = decltype(m_list.begin());
+  for (Iterator it = m_list.begin(); it != m_list.end(); it++) {
+    it->setdeleteflag(std::regex_match(it->name(), pattern));
+  }
+  return cleanup();
+}
+
+std::size_t
+Rdutil::removeNonMatchingRegex(const std::regex& pattern)
+{
+  // TODO test
+  using Iterator = decltype(m_list.begin());
+  for (Iterator it = m_list.begin(); it != m_list.end(); it++) {
+    it->setdeleteflag(!std::regex_match(it->name(), pattern));
+  }
+  return cleanup();
+}
+
+std::size_t
 Rdutil::removeUniqueSizes()
 {
   // sort list on size

@@ -127,6 +127,10 @@ public:
   // gets the filename
   const std::string& name() const { return m_filename; }
 
+  // gets the extension (TODO consider: should I make it case insensitive?)
+  // TODO optimize? Can I avoid constructing a string here?
+  const std::string getExtension() const;
+
   // gets the command line index this item was found at
   int get_cmdline_index() const { return m_cmdline_index; }
 

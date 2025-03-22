@@ -308,6 +308,26 @@ Fileinfo::static_deletefile(Fileinfo& A, const Fileinfo& /*B*/)
   return A.deletefile();
 }
 
+const std::string
+Fileinfo::getExtension() const
+{
+  // TODO minor: clean this up?
+  const char* const name_end = &m_filename.c_str()[m_filename.size()];
+  const char* ext;
+  for (ext = name_end; ext > m_filename.c_str(); ext--) {
+    if (ext[-1] == '/') {
+      // we found a / before the . so there's no extension
+      // I would use std::filesystem::path::preferred_separator or something but
+      // the rest of rdfind uses / anyways
+      return "";
+    } else if (ext[-1] == '.')
+      return std::string{ ext, static_cast<size_t>(name_end - ext) };
+  }
+  // we found the start of the path without finding any . so there's no
+  // extension
+  return "";
+}
+
 int
 Fileinfo::static_makesymlink(Fileinfo& A, const Fileinfo& B)
 {

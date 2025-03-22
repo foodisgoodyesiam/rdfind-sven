@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <regex>
 #include <string>
 #include <unordered_set>
@@ -83,7 +84,8 @@ usage()
        "changing anything\n"
        " -skipextension     extension     Skip files with given extension\n"
        " TODO implement the above\n"
-       " -includeextension  extension     Only include files with given extension\n"
+       " -includeextension  extension     Only include files with given "
+       "extension\n"
        " TODO implement the above\n"
        " -skipregex         regex         Skip files whose path "
        "matches grep-style regex\n"
@@ -91,6 +93,10 @@ usage()
        " -includeregex      regex         Only include files whose path "
        "matches grep-style regex\n"
        " TODO implement the above\n"
+       // TODO add options to benchmark the steps
+       " -regextype         ECMAScript | basic | extended | awk |(grep)| "
+       "egrep\n"
+       "                                  regex type\n"
     << " -h|-help|--help                  show this help and exit\n"
     << " -v|--version                     display version number and exit\n"
     << '\n'
@@ -123,14 +129,26 @@ struct Options
   bool deterministic = true; // be independent of filesystem order
   long nsecsleep = 0; // number of nanoseconds to sleep between each file read.
   std::string resultsfile = "results.txt"; // results file name.
-  TODO is regular set faster for small stuff?
-  std::unordered_set<string> extensions;
+  // TODO is regular set faster for small sets?
+  std::unordered_set<std::string> extensions;
   bool skip_extensions = false;
   bool include_extensions = false;
-  std::regex regex_pattern;
-  bool skip_regex = false;
-  bool include_regex = false;
+  std::vector<std::string> skip_regexes;
+  std::vector<std::string> include_regexes;
+  std::regex_constants::syntax_option_type regex_type =
+    std::regex_constants::grep;
 };
+
+// I suspect this just inflates the code size
+static const std::map<std::string, std::regex_constants::syntax_option_type>
+  REGEX_TYPES{
+    { "ECMAScript", std::regex_constants::ECMAScript },
+    { "basic", std::regex_constants::basic },
+    { "extended", std::regex_constants::extended },
+    { "awk", std::regex_constants::awk },
+    { "grep", std::regex_constants::grep },
+    { "egrep", std::regex_constants::egrep },
+  };
 
 Options
 parseOptions(Parser& parser)
@@ -167,19 +185,18 @@ parseOptions(Parser& parser)
       o.include_extensions = true;
       o.extensions.insert(parser.get_parsed_string());
     } else if (parser.try_parse_string("-skipregex")) {
-      // TODO implement
-      if (o.skip_regex || o.include_regex) {
-        throw std::runtime_error("can only give one regex");
-      }
-      o.regex_pattern =
-        regex{ parser.get_parsed_string(), regex::optimize | regex::grep };
+      o.skip_regexes.push_back(parser.get_parsed_string());
     } else if (parser.try_parse_string("-includeregex")) {
-      // TODO implement
-      if (o.skip_regex || o.include_regex) {
-        throw std::runtime_error("can only give one regex");
+      o.include_regexes.push_back(parser.get_parsed_string());
+    } else if (parser.try_parse_string("-regextype")) {
+      const std::string arg = parser.get_parsed_string();
+      std::map<std::string,
+               std::regex_constants::syntax_option_type>::const_iterator found =
+        REGEX_TYPES.find(arg);
+      if (found == REGEX_TYPES.cend()) {
+        throw std::runtime_error("invalid regex type");
       }
-      o.regex_pattern =
-        regex{ parser.get_parsed_string(), regex::optimize | regex::grep };
+      o.regex_type = found->second;
     } else if (parser.try_parse_bool("-ignoreempty")) {
       if (parser.get_parsed_bool()) {
         o.minimumfilesize = 1;
@@ -280,10 +297,6 @@ parseOptions(Parser& parser)
   }
   if (o.skip_extensions && o.include_extensions) {
     std::cerr << "cannot use both -skipextension and -includeextension\n";
-    std::exit(EXIT_FAILURE);
-  }
-  if (o.skip_regex && o.include_regex) {
-    std::cerr << "cannot use both -skipregex and -includeregex\n";
     std::exit(EXIT_FAILURE);
   }
 
@@ -391,26 +404,37 @@ main(int narg, const char* argv[])
   if (o.remove_identical_inode) {
     // remove files with identical devices and inodes from the list
     std::cout << dryruntext << "Removed " << gswd.removeIdenticalInodes()
-              << " files due to nonunique device and inode." << std::endl;
+              << " files due to nonunique device and inode. " << filelist.size()
+              << " files left." << std::endl;
   }
 
   if (o.skip_extensions) {
-    std::cout << dryruntext << "Removed " gswd.removeMatchingExtensions(o.extensions) << " files due to blacklisted extensions. "
-              << filelist.size() << " files left." << std::endl;
+    std::cout << dryruntext << "Removed "
+              << gswd.removeMatchingExtensions(o.extensions)
+              << " files due to blacklisted extensions. " << filelist.size()
+              << " files left." << std::endl;
   }
 
   if (o.include_extensions) {
-    std::cout << dryruntext << "Removed " gswd.removeNonMatchingExtensions(o.extensions) << " files due to whitelisted extensions. "
+    std::cout << dryruntext << "Removed "
+              << gswd.removeNonMatchingExtensions(o.extensions)
+              << " files due to whitelisted extensions. " << filelist.size()
+              << " files left." << std::endl;
+  }
+
+  for (const std::string& s : o.skip_regexes) {
+    // TODO: add error handling for invalid regexes
+    std::regex r{ s, std::regex::optimize | o.regex_type };
+    std::cout << dryruntext << "Removed " << gswd.removeMatchingRegex(r)
+              << " files due to matching regex \"" << s << "\". "
               << filelist.size() << " files left." << std::endl;
   }
 
-  if (o.skip_regex) {
-    std::cout << dryruntext << "Removed " gswd.removeMatchingRegex(o.regex_pattern) << " files due to matching regex. "
-              << filelist.size() << " files left." << std::endl;
-  }
-
-  if (o.include_regex) {
-    std::cout << dryruntext << "Removed " gswd.removeNonMatchingRegex(o.regex_pattern) << " files due to not matching regex. "
+  for (const std::string& s : o.include_regexes) {
+    // TODO: add error handling for invalid regexes
+    std::regex r{ s, std::regex::optimize | o.regex_type };
+    std::cout << dryruntext << "Removed " << gswd.removeNonMatchingRegex(r)
+              << " files due to not matching regex \"" << s << "\". "
               << filelist.size() << " files left." << std::endl;
   }
 
