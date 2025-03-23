@@ -22,6 +22,7 @@
 #include "Fileinfo.hh"    //file container
 #include "RdfindDebug.hh" //debug macro
 #include "Rdutil.hh"      //to do some work
+#include "Timer.hh"       //to print how long stuff took
 
 // global variables
 
@@ -89,10 +90,10 @@ usage()
        "matches grep-style regex\n"
        " -includeregex      regex         Only include files whose path "
        "matches grep-style regex\n"
-       // TODO add options to benchmark the steps
        " -regextype         ECMAScript | basic | extended | awk |(grep)| "
        "egrep\n"
        "                                  regex type\n"
+       " -benchmark         true |(false) Print how long each step took\n"
     << " -h|-help|--help                  show this help and exit\n"
     << " -v|--version                     display version number and exit\n"
     << '\n'
@@ -133,6 +134,7 @@ struct Options
   std::vector<std::string> include_regexes;
   std::regex_constants::syntax_option_type regex_type =
     std::regex_constants::grep;
+  bool benchmark = false;
 };
 
 // I suspect this just inflates the code size
@@ -182,6 +184,8 @@ parseOptions(Parser& parser)
       o.skip_regexes.push_back(parser.get_parsed_string());
     } else if (parser.try_parse_string("-includeregex")) {
       o.include_regexes.push_back(parser.get_parsed_string());
+    } else if (parser.try_parse_bool("-benchmark")) {
+      o.benchmark = parser.get_parsed_bool();
     } else if (parser.try_parse_string("-regextype")) {
       const std::string arg = parser.get_parsed_string();
       std::map<std::string,
@@ -360,6 +364,10 @@ main(int narg, const char* argv[])
 
   // now loop over path list and add the files
 
+  Timer timer;
+  if (o.benchmark)
+    timer.start();
+
   // done with arguments. start parsing files and directories!
   for (; parser.has_args_left(); parser.advance()) {
     // get the next arg.
@@ -378,12 +386,16 @@ main(int narg, const char* argv[])
     current_cmdline_index = parser.get_current_index();
     dirlist.walk(file_or_dir, 0);
     std::cout << ", found " << filelist.size() - lastsize << " files."
-              << std::endl;
+              << timer << std::endl;
 
     // if we want deterministic output, we will sort the newly added
     // items on depth, then filename.
     if (o.deterministic) {
       gswd.sort_on_depth_and_name(lastsize);
+    }
+
+    if (o.benchmark) {
+      std::cout << "Sorted by depth and name." << timer << std::endl;
     }
   }
 
@@ -399,21 +411,21 @@ main(int narg, const char* argv[])
     // remove files with identical devices and inodes from the list
     std::cout << dryruntext << "Removed " << gswd.removeIdenticalInodes()
               << " files due to nonunique device and inode. " << filelist.size()
-              << " files left." << std::endl;
+              << " files left." << timer << std::endl;
   }
 
   if (o.skip_extensions) {
     std::cout << dryruntext << "Removed "
               << gswd.removeMatchingExtensions(o.extensions)
               << " files due to blacklisted extensions. " << filelist.size()
-              << " files left." << std::endl;
+              << " files left." << timer << std::endl;
   }
 
   if (o.include_extensions) {
     std::cout << dryruntext << "Removed "
               << gswd.removeNonMatchingExtensions(o.extensions)
               << " files due to whitelisted extensions. " << filelist.size()
-              << " files left." << std::endl;
+              << " files left." << timer << std::endl;
   }
 
   for (const std::string& s : o.skip_regexes) {
@@ -421,7 +433,7 @@ main(int narg, const char* argv[])
     std::regex r{ s, std::regex::optimize | o.regex_type };
     std::cout << dryruntext << "Removed " << gswd.removeMatchingRegex(r)
               << " files due to matching regex \"" << s << "\". "
-              << filelist.size() << " files left." << std::endl;
+              << filelist.size() << " files left." << timer << std::endl;
   }
 
   for (const std::string& s : o.include_regexes) {
@@ -429,7 +441,7 @@ main(int narg, const char* argv[])
     std::regex r{ s, std::regex::optimize | o.regex_type };
     std::cout << dryruntext << "Removed " << gswd.removeNonMatchingRegex(r)
               << " files due to not matching regex \"" << s << "\". "
-              << filelist.size() << " files left." << std::endl;
+              << filelist.size() << " files left." << timer << std::endl;
   }
 
   std::cout << dryruntext << "Total size is " << gswd.totalsizeinbytes()
@@ -438,7 +450,7 @@ main(int narg, const char* argv[])
 
   std::cout << "Removed " << gswd.removeUniqueSizes()
             << " files due to unique sizes from list. ";
-  std::cout << filelist.size() << " files left." << std::endl;
+  std::cout << filelist.size() << " files left." << timer << std::endl;
 
   // ok. we now need to do something stronger to disambiguate the duplicate
   // candidates. start looking at the contents.
@@ -474,7 +486,7 @@ main(int narg, const char* argv[])
     // remove non-duplicates
     std::cout << "removed " << gswd.removeUniqSizeAndBuffer()
               << " files from list. ";
-    std::cout << filelist.size() << " files left." << std::endl;
+    std::cout << filelist.size() << " files left." << timer << std::endl;
   }
 
   // What is left now is a list of duplicates, ordered on size.
@@ -491,9 +503,9 @@ main(int narg, const char* argv[])
 
   // traverse the list and make a nice file with the results
   if (o.makeresultsfile) {
-    std::cout << dryruntext << "Now making results file " << o.resultsfile
-              << std::endl;
+    std::cout << dryruntext << "Now making results file " << o.resultsfile;
     gswd.printtofile(o.resultsfile);
+    std::cout << timer << std::endl;
   }
 
   // traverse the list and replace with symlinks
@@ -501,7 +513,7 @@ main(int narg, const char* argv[])
     std::cout << dryruntext << "Now making symbolic links. creating "
               << std::endl;
     const auto tmp = gswd.makesymlinks(o.dryrun);
-    std::cout << "Making " << tmp << " links." << std::endl;
+    std::cout << "Making " << tmp << " links." << timer << std::endl;
     return 0;
   }
 
@@ -509,7 +521,7 @@ main(int narg, const char* argv[])
   if (o.makehardlinks) {
     std::cout << dryruntext << "Now making hard links." << std::endl;
     const auto tmp = gswd.makehardlinks(o.dryrun);
-    std::cout << dryruntext << "Making " << tmp << " links." << std::endl;
+    std::cout << dryruntext << "Making " << tmp << " links." << timer << std::endl;
     return 0;
   }
 
@@ -517,7 +529,7 @@ main(int narg, const char* argv[])
   if (o.deleteduplicates) {
     std::cout << dryruntext << "Now deleting duplicates:" << std::endl;
     const auto tmp = gswd.deleteduplicates(o.dryrun);
-    std::cout << dryruntext << "Deleted " << tmp << " files." << std::endl;
+    std::cout << dryruntext << "Deleted " << tmp << " files." << timer << std::endl;
     return 0;
   }
   return 0;
