@@ -411,21 +411,24 @@ main(int narg, const char* argv[])
     // remove files with identical devices and inodes from the list
     std::cout << dryruntext << "Removed " << gswd.removeIdenticalInodes()
               << " files due to nonunique device and inode. " << filelist.size()
-              << " files left." << timer << std::endl;
+              << " files left (";
+    gswd.totalsize(std::cout) << ")." << timer << std::endl;
   }
 
   if (o.skip_extensions) {
     std::cout << dryruntext << "Removed "
               << gswd.removeMatchingExtensions(o.extensions)
               << " files due to blacklisted extensions. " << filelist.size()
-              << " files left." << timer << std::endl;
+              << " files left (";
+    gswd.totalsize(std::cout) << ")." << timer << std::endl;
   }
 
   if (o.include_extensions) {
     std::cout << dryruntext << "Removed "
               << gswd.removeNonMatchingExtensions(o.extensions)
               << " files due to whitelisted extensions. " << filelist.size()
-              << " files left." << timer << std::endl;
+              << " files left (";
+    gswd.totalsize(std::cout) << ")." << timer << std::endl;
   }
 
   for (const std::string& s : o.skip_regexes) {
@@ -433,7 +436,8 @@ main(int narg, const char* argv[])
     std::regex r{ s, std::regex::optimize | o.regex_type };
     std::cout << dryruntext << "Removed " << gswd.removeMatchingRegex(r)
               << " files due to matching regex \"" << s << "\". "
-              << filelist.size() << " files left." << timer << std::endl;
+              << filelist.size() << " files left (";
+    gswd.totalsize(std::cout) << ")." << timer << std::endl;
   }
 
   for (const std::string& s : o.include_regexes) {
@@ -441,7 +445,8 @@ main(int narg, const char* argv[])
     std::regex r{ s, std::regex::optimize | o.regex_type };
     std::cout << dryruntext << "Removed " << gswd.removeNonMatchingRegex(r)
               << " files due to not matching regex \"" << s << "\". "
-              << filelist.size() << " files left." << timer << std::endl;
+              << filelist.size() << " files left (";
+    gswd.totalsize(std::cout) << ")." << timer << std::endl;
   }
 
   std::cout << dryruntext << "Total size is " << gswd.totalsizeinbytes()
@@ -486,7 +491,8 @@ main(int narg, const char* argv[])
     // remove non-duplicates
     std::cout << "removed " << gswd.removeUniqSizeAndBuffer()
               << " files from list. ";
-    std::cout << filelist.size() << " files left." << timer << std::endl;
+    std::cout << filelist.size() << " files left (";
+    gswd.totalsize(std::cout) << ")." << timer << std::endl;
   }
 
   // What is left now is a list of duplicates, ordered on size.
