@@ -385,8 +385,8 @@ main(int narg, const char* argv[])
     std::cout.flush();
     current_cmdline_index = parser.get_current_index();
     dirlist.walk(file_or_dir, 0);
-    std::cout << ", found " << filelist.size() - lastsize << " files."
-              << timer << std::endl;
+    std::cout << ", found " << filelist.size() - lastsize << " files." << timer
+              << std::endl;
 
     // if we want deterministic output, we will sort the newly added
     // items on depth, then filename.
@@ -529,7 +529,8 @@ main(int narg, const char* argv[])
   if (o.makehardlinks) {
     std::cout << dryruntext << "Now making hard links." << std::endl;
     const auto tmp = gswd.makehardlinks(o.dryrun);
-    std::cout << dryruntext << "Making " << tmp << " links." << timer << std::endl;
+    std::cout << dryruntext << "Making " << tmp << " links." << timer
+              << std::endl;
     return 0;
   }
 
@@ -537,7 +538,8 @@ main(int narg, const char* argv[])
   if (o.deleteduplicates) {
     std::cout << dryruntext << "Now deleting duplicates:" << std::endl;
     const auto tmp = gswd.deleteduplicates(o.dryrun);
-    std::cout << dryruntext << "Deleted " << tmp << " files." << timer << std::endl;
+    std::cout << dryruntext << "Deleted " << tmp << " files." << timer
+              << std::endl;
     return 0;
   }
   return 0;
