@@ -400,7 +400,8 @@ main(int narg, const char* argv[])
   }
 
   std::cout << dryruntext << "Now have " << filelist.size()
-            << " files in total." << std::endl;
+            << " files in total (";
+  gswd.totalsize(std::cout) << ")." << std::endl;
 
   // mark files with a number for correct ranking. The only ordering at this
   // point is that files found on early command line index are earlier in the
@@ -455,7 +456,8 @@ main(int narg, const char* argv[])
 
   std::cout << "Removed " << gswd.removeUniqueSizes()
             << " files due to unique sizes from list. ";
-  std::cout << filelist.size() << " files left." << timer << std::endl;
+  std::cout << filelist.size() << " files left (";
+  gswd.totalsize(std::cout) << ")." << timer << std::endl;
 
   // ok. we now need to do something stronger to disambiguate the duplicate
   // candidates. start looking at the contents.
